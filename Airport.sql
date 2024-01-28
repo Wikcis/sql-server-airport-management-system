@@ -1,39 +1,12 @@
---------------------------------------------------------------------------------------------------------------
---Projekty mog¹ byæ realizowane w grupach do 3 osób w³¹cznie. 
---Projekt jest na zal. i jest wymagany do zaliczenia przedmiotu.
---------------------------------------------------------------------------------------------------------------
-
---Projekt ma zwieraæ plik z opisem w formacie pdf, który powinien zawieraæ:
---Strona tytu³owa - Nazwa bazy danych oraz nazwiska, imiê i numer albumu studentów realizuj¹cych projekt. 
---Rozdz. 1. Podstawowe za³o¿enia projektu (cel, g³ówne za³o¿enia, mo¿liwoœci, ograniczenia przyjête przy projektowaniu),
---Rozdz. 2. Schemat bazy danych - czytelny,
---Rozdz. 3. Obiekty bazy danych i ich opis.
---- tabele, ograniczenia (CHECK,DEFAULT,FK,PK,Unique) i ich opis (przynajmniej ka¿da tabela powinna mieæ swój opis zdefiniowane bezpoœrednio w SSMS lub za pomoc¹ sp_addextendedproperty)
---   • dodatkowo w bazie danych powinno byæ w ka¿dej tabeli pole ModifiedDate z wyzwalaczem, który przy modyfikacji danych w danej tabeli ustawi aktualna datê modyfikacji. 
---   Przy wstawianiu danych wykorzystamy ograniczenie DEFAULT.
---   • dodatkowo w bazie danych powinno byæ w ka¿dej tabeli pole rowguid i ograniczniem DEFAULT z funkcj¹ newid() 
---   • baza powinna spe³niaæ trzy pierwsze postacie normalne, a jeœli jakiœ element nie spe³nia to proszê opisaæ dlaczego (mo¿e to byæ zamierzone przez projektanta).
---- opis indeksów, które zosta³y automatycznie utworzone przy tworzniu ograniczenia PK i Unique. Jeœli chcemy zdefiniowaæ w³asny indeks to tak¿e proszê go opisaæ.
---- triggery i ich opis
---- procedury i ich opis (np. do wstawiania danych do bazy)
---- funkcje i ich opis (np. zdefiniowaæ przynajmniej jedn¹ funkcjê u¿ytkownika)
---- widoki i ich opis (np. z podstawowymi funkcjonalnoœciami bazy danych)
---Rozdz. 4. Role bazy danych, uprawnienia i przypisaæ do nich po jednym u¿ytkowniku. 
---	Np. U¿ytkownik Admin - mo¿e wszystko w danej bazie danych (jest w³aœcicielem) 
---	U¿ytkownik Pracownik ma prawo do wykonywania procedury przechowywanej bez praw do tabel.
---	U¿ytkownik Klient_anonimowy ma prawo do ogl¹dania danych na widoku bez operacji INSERT, UPDATE i DELETE oraz bez praw do tabel wykorzystywanych w widoku.
---Rozdz. 5. Uwagi z czym by³y k³opoty i co nie zosta³o zralizowane pomyœlnie.
-
---Oprócz pliku pdf do³¹czamy skrypt wygenerowany do wyboru: 
---	- za pomoc¹ opcji Taks|Generate Scripts ³¹cznie z danymi, 
---	- pliku Backupu bazy danych 
---	- pliku Export Data-tier Application (bacpac). 
-
---Do ka¿dego projektu dok³adamy krótki 3-5 minut film z przedstawieniem projektu.
---------------------------------------------------------------------------------------------------------------
+USE master;
+Go
+DROP DATABASE IF EXISTS AIRPORT;
+GO
 -- Create database
 CREATE DATABASE AIRPORT;
+Go
 Use Airport;
+Go
 
 -- Terminals table
 CREATE TABLE Terminals (
@@ -138,7 +111,7 @@ CREATE TABLE DeparturePlaces (
 );
 Go
 
--- Flights table descriprition
+-- Flights table
 CREATE TABLE Flights (
     flightId INT PRIMARY KEY,
     routeId INT FOREIGN KEY REFERENCES routes(routeId),
@@ -152,6 +125,27 @@ CREATE TABLE Flights (
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID(),
 );
 GO
+
+-- Tickets table
+CREATE TABLE Tickets (
+    TicketId INT PRIMARY KEY,
+    SeatNumber INT NOT NULL,
+    RowNumber INT NOT NULL,
+	ColumnNumber INT NOT NULL,
+	Class INT NOT NULL,
+	Price FLOAT NOT NULL,
+	IsBooked BIT,
+    ModifiedDate DATETIME DEFAULT GETDATE(),
+    rowguid UNIQUEIDENTIFIER DEFAULT NEWID()
+);
+Go
+
+-- FlightTickets table
+CREATE TABLE FlightTickets (
+    FlightId INT FOREIGN KEY REFERENCES Flights(FlightId),
+    TicketId INT FOREIGN KEY REFERENCES Tickets(TicketId),
+    PRIMARY KEY (FlightId, TicketId)
+);
 
 -- EventLogs table
 CREATE TABLE EventLogs (
@@ -236,6 +230,19 @@ EXEC sys.sp_addextendedproperty
     @level0type=N'SCHEMA', @level0name=N'dbo', 
     @level1type=N'TABLE', @level1name=N'flights';
 
+-- Tickets table descriprition
+EXEC sys.sp_addextendedproperty 
+    @name=N'MS_Description', 
+    @value=N'Table storing information about tickets and if it is booked.', 
+    @level0type=N'SCHEMA', @level0name=N'dbo', 
+    @level1type=N'TABLE', @level1name=N'tickets';
+
+-- FlightTickets table descriprition
+EXEC sys.sp_addextendedproperty 
+    @name=N'MS_Description', 
+    @value=N'Table storing information about tickets for the flight', 
+    @level0type=N'SCHEMA', @level0name=N'dbo', 
+    @level1type=N'TABLE', @level1name=N'flightTickets';
 
 -- EventLogs table descriprition
 EXEC sys.sp_addextendedproperty 
