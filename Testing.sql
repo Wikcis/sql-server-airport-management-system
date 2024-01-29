@@ -72,3 +72,31 @@ INSERT INTO EventLogs (loggedBy, loggedOn, status, source, message)
 VALUES (1, 1, 'Success', 'System', 'Flight added successfully');
 INSERT INTO EventLogs (loggedBy, loggedOn, status, source, message)
 VALUES (2, 2, 'Error', 'System', 'Ticket not booked');
+
+SELECT * FROM Terminals;
+
+SELECT * FROM Gates;
+
+SELECT * FROM Addresses;
+
+SELECT * FROM Passengers;
+
+SELECT * FROM Planes;
+
+SELECT * FROM Employees;
+
+SELECT * FROM Airports;
+
+SELECT * FROM Routes;
+
+SELECT * FROM DeparturePlaces;
+
+SELECT * FROM Flights;
+
+SELECT * FROM Tickets;
+
+SELECT * FROM PassengerTickets;
+
+SELECT * FROM FlightTickets;
+
+SELECT * FROM EventLogs;
