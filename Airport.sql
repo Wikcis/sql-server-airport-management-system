@@ -2,15 +2,18 @@ USE master;
 Go
 DROP DATABASE IF EXISTS AIRPORT;
 GO
+
 -- Create database
 CREATE DATABASE AIRPORT;
 Go
 Use Airport;
 Go
 
+-- Tables --------------------------------------------------------------------------
+
 -- Terminals table
 CREATE TABLE Terminals (
-    terminalId INT PRIMARY KEY,
+    terminalId INT PRIMARY KEY IDENTITY(1,1),
     ModifiedDate DATETIME DEFAULT GETDATE(),
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID(),
 );
@@ -18,8 +21,8 @@ GO
 
 -- Gates table
 CREATE TABLE Gates (
-    gateId INT PRIMARY KEY,
-	terminalId INT FOREIGN KEY REFERENCES terminals(terminalId),
+    gateId INT PRIMARY KEY IDENTITY(1,1),
+	  terminalId INT FOREIGN KEY REFERENCES terminals(terminalId),
     ModifiedDate DATETIME DEFAULT GETDATE(),
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID(),
 );
@@ -27,7 +30,7 @@ GO
 
 -- addresses table
 CREATE TABLE Addresses (
-    addressId INT PRIMARY KEY,
+    addressId INT PRIMARY KEY IDENTITY(1,1),
     country VARCHAR(50) NOT NULL,
     city VARCHAR(50) NOT NULL,
     postalCode VARCHAR(20) NOT NULL,
@@ -39,7 +42,7 @@ CREATE TABLE Addresses (
 
 -- Passengers table
 CREATE TABLE Passengers (
-	passengerId INT PRIMARY KEY,
+	  passengerId INT PRIMARY KEY IDENTITY(1,1),
     passportNumber VARCHAR(20) NOT NULL,
     firstName VARCHAR(50) NOT NULL,
     lastName VARCHAR(50) NOT NULL,
@@ -55,7 +58,7 @@ GO
 
 -- Planes table
 CREATE TABLE Planes (
-    planeId INT PRIMARY KEY,
+    planeId INT PRIMARY KEY IDENTITY(1,1),
     airlineCode VARCHAR(10),
     name VARCHAR(50) NOT NULL,
     numberOfRows INT NOT NULL,
@@ -68,7 +71,7 @@ GO
 
 -- Employees table
 CREATE TABLE Employees (
-    employeeId INT PRIMARY KEY,
+    employeeId INT PRIMARY KEY IDENTITY(1,1),
     firstName VARCHAR(50) NOT NULL,
     lastName VARCHAR(50) NOT NULL,
     phoneNumber VARCHAR(20),
@@ -84,7 +87,7 @@ GO
 
 -- Airports table
 CREATE TABLE Airports (
-    airportId INT PRIMARY KEY,
+    airportId INT PRIMARY KEY IDENTITY(1,1),
     name VARCHAR(50) NOT NULL,
     addressId INT FOREIGN KEY REFERENCES addresses(addressId),
     ModifiedDate DATETIME DEFAULT GETDATE(),
@@ -94,7 +97,7 @@ GO
 
 -- Routes table
 CREATE TABLE Routes (
-    routeId INT PRIMARY KEY,
+    routeId INT PRIMARY KEY IDENTITY(1,1),
     sourceAirport INT FOREIGN KEY REFERENCES airports(airportId) NOT NULL,
     destinationAirport INT FOREIGN KEY REFERENCES airports(airportId) NOT NULL,
     ModifiedDate DATETIME DEFAULT GETDATE(),
@@ -103,7 +106,7 @@ CREATE TABLE Routes (
 
 -- DeparturePlaces table
 CREATE TABLE DeparturePlaces (
-    departurePlaceId INT PRIMARY KEY,
+    departurePlaceId INT PRIMARY KEY IDENTITY(1,1),
     departureTerminalId INT FOREIGN KEY REFERENCES terminals(terminalId),
     departureGateId INT FOREIGN KEY REFERENCES gates(gateId),
     ModifiedDate DATETIME DEFAULT GETDATE(),
@@ -113,7 +116,7 @@ Go
 
 -- Flights table
 CREATE TABLE Flights (
-    flightId INT PRIMARY KEY,
+    flightId INT PRIMARY KEY IDENTITY(1,1),
     routeId INT FOREIGN KEY REFERENCES routes(routeId),
     timeOfDeparture DATETIME NOT NULL,
     timeOfArrival DATETIME NOT NULL,
@@ -128,17 +131,24 @@ GO
 
 -- Tickets table
 CREATE TABLE Tickets (
-    TicketId INT PRIMARY KEY,
+    TicketId INT PRIMARY KEY IDENTITY(1,1),
+    timeOfDeparture DATETIME NOT NULL,
     SeatNumber INT NOT NULL,
     RowNumber INT NOT NULL,
-	ColumnNumber INT NOT NULL,
-	Class INT NOT NULL,
-	Price FLOAT NOT NULL,
-	IsBooked BIT,
+    ColumnNumber INT NOT NULL,
+    Class INT NOT NULL,
+    Price FLOAT NOT NULL,
     ModifiedDate DATETIME DEFAULT GETDATE(),
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID()
 );
 Go
+
+-- PassengerTickets table
+CREATE TABLE PassengerTickets (
+    PassengerId INT FOREIGN KEY REFERENCES Passengers(PassengerId),
+    TicketId INT FOREIGN KEY REFERENCES Tickets(TicketId),
+    PRIMARY KEY (PassengerId,TicketId)
+);
 
 -- FlightTickets table
 CREATE TABLE FlightTickets (
@@ -149,7 +159,7 @@ CREATE TABLE FlightTickets (
 
 -- EventLogs table
 CREATE TABLE EventLogs (
-    eventId INT PRIMARY KEY,
+    eventId INT PRIMARY KEY IDENTITY(1,1),
     loggedBy INT FOREIGN KEY REFERENCES Employees(employeeId),
     loggedOn INT FOREIGN KEY REFERENCES Passengers(passengerId),
     status VARCHAR(20),
@@ -159,6 +169,8 @@ CREATE TABLE EventLogs (
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID(),
 );
 GO
+
+-- Descriptions -----------------------------------------------------------------------
 
 -- Terminals table descriprion
 EXEC sys.sp_addextendedproperty 
@@ -233,14 +245,21 @@ EXEC sys.sp_addextendedproperty
 -- Tickets table descriprition
 EXEC sys.sp_addextendedproperty 
     @name=N'MS_Description', 
-    @value=N'Table storing information about tickets and if it is booked.', 
+    @value=N'Table storing information about tickets.', 
     @level0type=N'SCHEMA', @level0name=N'dbo', 
     @level1type=N'TABLE', @level1name=N'tickets';
+
+-- PassengerTickets table descriprition
+EXEC sys.sp_addextendedproperty 
+    @name=N'MS_Description', 
+    @value=N'Table storing information about booked tickets.', 
+    @level0type=N'SCHEMA', @level0name=N'dbo', 
+    @level1type=N'TABLE', @level1name=N'passengerTickets';
 
 -- FlightTickets table descriprition
 EXEC sys.sp_addextendedproperty 
     @name=N'MS_Description', 
-    @value=N'Table storing information about tickets for the flight', 
+    @value=N'Table storing information about tickets for the flight.', 
     @level0type=N'SCHEMA', @level0name=N'dbo', 
     @level1type=N'TABLE', @level1name=N'flightTickets';
 
