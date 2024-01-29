@@ -22,7 +22,7 @@ GO
 -- Gates table
 CREATE TABLE Gates (
     gateId INT PRIMARY KEY IDENTITY(1,1),
-	  terminalId INT FOREIGN KEY REFERENCES terminals(terminalId),
+	terminalId INT FOREIGN KEY REFERENCES terminals(terminalId),
     ModifiedDate DATETIME DEFAULT GETDATE(),
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID(),
 );
@@ -42,7 +42,7 @@ CREATE TABLE Addresses (
 
 -- Passengers table
 CREATE TABLE Passengers (
-	  passengerId INT PRIMARY KEY IDENTITY(1,1),
+	passengerId INT PRIMARY KEY IDENTITY(1,1),
     passportNumber VARCHAR(20) NOT NULL,
     firstName VARCHAR(50) NOT NULL,
     lastName VARCHAR(50) NOT NULL,
@@ -132,12 +132,12 @@ GO
 -- Tickets table
 CREATE TABLE Tickets (
     TicketId INT PRIMARY KEY IDENTITY(1,1),
-    timeOfDeparture DATETIME NOT NULL,
+	timeOfDeparture DATETIME NOT NULL,
     SeatNumber INT NOT NULL,
     RowNumber INT NOT NULL,
-    ColumnNumber INT NOT NULL,
-    Class INT NOT NULL,
-    Price FLOAT NOT NULL,
+	ColumnNumber INT NOT NULL,
+	Class INT NOT NULL,
+	Price FLOAT NOT NULL,
     ModifiedDate DATETIME DEFAULT GETDATE(),
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID()
 );
