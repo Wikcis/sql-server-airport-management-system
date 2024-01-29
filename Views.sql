@@ -1,6 +1,6 @@
 USE AIRPORT;
 Go
-
+-- View to display ticket informations and a passenger on this ticket
 CREATE OR ALTER VIEW TicketInformation AS
 SELECT
     t.TicketId,
@@ -37,4 +37,40 @@ JOIN
     Addresses a ON p.addressId = a.addressId;
 Go
 
-SELECT * FROM TicketInformation
+-- View to display tickets that are booked
+CREATE OR ALTER VIEW BookedTickets AS
+SELECT
+    t.TicketId,
+    t.timeOfDeparture,
+    t.SeatNumber,
+    t.RowNumber,
+    t.ColumnNumber,
+    t.Class,
+    t.Price
+FROM
+    Tickets t
+INNER JOIN
+    PassengerTickets pt ON t.TicketId = pt.TicketId
+Go
+
+-- View to display tickets that available to book
+CREATE OR ALTER VIEW AvailableTickets AS
+SELECT
+    t.TicketId,
+    t.timeOfDeparture,
+    t.SeatNumber,
+    t.RowNumber,
+    t.ColumnNumber,
+    t.Class,
+    t.Price
+FROM
+    Tickets t
+WHERE
+    NOT EXISTS (
+        SELECT 1
+        FROM
+            PassengerTickets pt
+        WHERE
+            pt.TicketId = t.TicketId
+    );
+GO
