@@ -2,11 +2,14 @@ USE master;
 Go
 DROP DATABASE IF EXISTS AIRPORT;
 GO
+
 -- Create database
 CREATE DATABASE AIRPORT;
 Go
 Use Airport;
 Go
+
+-- Tables --------------------------------------------------------------------------
 
 -- Terminals table
 CREATE TABLE Terminals (
@@ -129,6 +132,7 @@ GO
 -- Tickets table
 CREATE TABLE Tickets (
     TicketId INT PRIMARY KEY,
+	timeOfDeparture DATETIME NOT NULL,
     SeatNumber INT NOT NULL,
     RowNumber INT NOT NULL,
 	ColumnNumber INT NOT NULL,
@@ -159,6 +163,8 @@ CREATE TABLE EventLogs (
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID(),
 );
 GO
+
+-- Descriptions -----------------------------------------------------------------------
 
 -- Terminals table descriprion
 EXEC sys.sp_addextendedproperty 
@@ -250,3 +256,4 @@ EXEC sys.sp_addextendedproperty
     @value=N'Table storing information about event logs, which is an information if the action was successful or not.', 
     @level0type=N'SCHEMA', @level0name=N'dbo', 
     @level1type=N'TABLE', @level1name=N'eventLogs';
+
