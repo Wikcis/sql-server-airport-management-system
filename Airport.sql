@@ -147,14 +147,18 @@ Go
 CREATE TABLE PassengerTickets (
     PassengerId INT FOREIGN KEY REFERENCES Passengers(PassengerId),
     TicketId INT FOREIGN KEY REFERENCES Tickets(TicketId),
-    PRIMARY KEY (PassengerId,TicketId)
+	PRIMARY KEY (PassengerId,TicketId),
+	ModifiedDate DATETIME DEFAULT GETDATE(),
+    rowguid UNIQUEIDENTIFIER DEFAULT NEWID()
 );
 
 -- FlightTickets table
 CREATE TABLE FlightTickets (
     FlightId INT FOREIGN KEY REFERENCES Flights(FlightId),
     TicketId INT FOREIGN KEY REFERENCES Tickets(TicketId),
-    PRIMARY KEY (FlightId, TicketId)
+    PRIMARY KEY (FlightId, TicketId),
+	ModifiedDate DATETIME DEFAULT GETDATE(),
+    rowguid UNIQUEIDENTIFIER DEFAULT NEWID()
 );
 
 -- EventLogs table
