@@ -4,25 +4,24 @@ Go
 
 --Trigger to check if the ticket is available to book, so if it is booked
 CREATE OR ALTER TRIGGER check_ticket_availability
-ON Tickets
-FOR UPDATE
+ON PassengerTickets
+FOR INSERT
 AS
 BEGIN
+	DECLARE @p_ticketId INT;
+	SET @p_ticketId = (SELECT ticketId FROM inserted);
     IF EXISTS (
-        SELECT 1
-        FROM INSERTED i
-        INNER JOIN Tickets t ON i.TicketId = t.TicketId
-        WHERE i.IsBooked = 1 AND t.IsBooked = 1
+        SELECT *
+        FROM PassengerTickets pt
+        WHERE pt.ticketId = @p_ticketId
     )
     BEGIN
         RAISERROR ('Ticket is already booked.', 16, 1);
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-        UPDATE t
-        SET t.IsBooked = i.IsBooked
-        FROM Tickets t
-        INNER JOIN INSERTED i ON t.TicketId = i.TicketId;
+        INSERT INTO PassengerTickets
+        SELECT * FROM inserted;
     END;
 END;
 Go
@@ -43,27 +42,27 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Tickets
-		SELECT *
-		FROM INSERTED;
-	END;
-	ELSE
-	BEGIN
-		UPDATE t
-		SET t.timeOfDeparture = i.timeOfDeparture,
-			t.SeatNumber = i.SeatNumber,
-			t.RowNumber = i.RowNumber,
-			t.ColumnNumber = i.ColumnNumber,
-			t.Class = t.Class,
-			t.Price = i.Price,
-			t.IsBooked = i.IsBooked,
-			t.ModifiedDate = i.ModifiedDate,
-			t.rowguid = i.rowguid
-		FROM Tickets t
-		INNER JOIN INSERTED i ON t.TicketId = i.TicketId;
-	END;
+        INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price)
+        SELECT timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price
+        FROM INSERTED;
+    END;
+    ELSE
+    BEGIN
+        UPDATE t
+        SET t.timeOfDeparture = i.timeOfDeparture,
+            t.SeatNumber = i.SeatNumber,
+            t.RowNumber = i.RowNumber,
+            t.ColumnNumber = i.ColumnNumber,
+            t.Class = i.Class,
+            t.Price = i.Price,
+            t.ModifiedDate = i.ModifiedDate,
+            t.rowguid = i.rowguid
+        FROM Tickets t
+        INNER JOIN INSERTED i ON t.TicketId = i.TicketId;
+    END;
 END;
-Go
+GO
+
 
 --Trigger to check if the departure is before arrival
 CREATE OR ALTER TRIGGER check_if_departure_before_arrival
@@ -81,8 +80,8 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Flights
-        SELECT *
+		INSERT INTO Flights (routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed)
+        SELECT routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed
         FROM INSERTED;
 	END;
 	ELSE 
@@ -119,8 +118,8 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Routes
-        SELECT *
+		INSERT INTO Routes (sourceAirport, destinationAirport)
+        SELECT sourceAirport, destinationAirport
         FROM INSERTED;
 	END;
 	ELSE 
@@ -152,8 +151,8 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Flights
-        SELECT *
+		INSERT INTO Flights (routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed)
+        SELECT routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed
         FROM INSERTED;
 	END;
 	ELSE 
@@ -176,7 +175,7 @@ Go
 
 --Trigger to check if the number of tickets is smaller or equal to capacity
 CREATE OR ALTER TRIGGER check_if_number_of_tickets_smaller_or_equal_to_capacity
-ON Tickets
+ON FlightTickets
 FOR INSERT, UPDATE
 AS
 BEGIN
@@ -184,10 +183,8 @@ BEGIN
     DECLARE @TotalSeats INT;
     DECLARE @OccupiedSeats INT;
 
-    SELECT @FlightId = f.FlightId
-    FROM INSERTED i
-    INNER JOIN FlightTickets ft ON i.TicketId = ft.TicketId
-	INNER JOIN Flights f ON ft.FlightId = f.flightId;
+    SELECT @FlightId = i.FlightId
+    FROM INSERTED i;
 
     SELECT @TotalSeats = p.capacity
     FROM Flights f
@@ -204,24 +201,17 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Tickets
+		INSERT INTO FlightTickets
         SELECT *
         FROM INSERTED;
 	END;
 	ELSE 
 	BEGIN
-        UPDATE t
-		SET t.timeOfDeparture = i.timeOfDeparture,
-			t.SeatNumber = i.SeatNumber,
-			t.RowNumber = i.RowNumber,
-			t.ColumnNumber = i.ColumnNumber,
-			t.Class = t.Class,
-			t.Price = i.Price,
-			t.IsBooked = i.IsBooked,
-			t.ModifiedDate = i.ModifiedDate,
-			t.rowguid = i.rowguid
-		FROM Tickets t
-		INNER JOIN INSERTED i ON t.TicketId = i.TicketId;
+        UPDATE ft
+		SET ft.FlightId = i.FlightId,
+			ft.TicketId = i.TicketId
+		FROM FlightTickets ft
+		INNER JOIN INSERTED i ON ft.TicketId = i.TicketId;
     END;
 END;
 Go
@@ -256,8 +246,8 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Tickets
-        SELECT *
+		INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price)
+        SELECT timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price
         FROM INSERTED;
 	END;
 	ELSE 
@@ -269,7 +259,6 @@ BEGIN
 			t.ColumnNumber = i.ColumnNumber,
 			t.Class = t.Class,
 			t.Price = i.Price,
-			t.IsBooked = i.IsBooked,
 			t.ModifiedDate = i.ModifiedDate,
 			t.rowguid = i.rowguid
 		FROM Tickets t
@@ -280,25 +269,28 @@ Go
 
 --Trigger to check if the ticket has free seat
 CREATE OR ALTER TRIGGER check_if_ticket_has_free_seat
-ON Tickets
+ON FlightTickets
 FOR INSERT, UPDATE
 AS
 BEGIN
     DECLARE @FlightId INT;
+	DECLARE @TicketId INT;
 	DECLARE @Seat INT;
 
-    SELECT @FlightId = f.FlightId
-    FROM INSERTED i
-    INNER JOIN FlightTickets ft ON i.TicketId = ft.TicketId
-	INNER JOIN Flights f ON ft.FlightId = f.flightId;
+    SELECT @FlightId = i.FlightId
+    FROM INSERTED i;
 
-    SELECT @Seat = i.SeatNumber
-    FROM inserted i;
+	SELECT @TicketId = i.TicketId
+    FROM INSERTED i;
+
+    SELECT @Seat = t.SeatNumber
+    FROM Tickets t
+	WHERE t.TicketId = @TicketId;
 
     IF EXISTS (
 		SELECT *
-		FROM Tickets t 
-		INNER JOIN FlightTickets ft ON t.TicketId = ft.TicketId
+		FROM FlightTickets ft 
+		INNER JOIN Tickets t ON t.TicketId = ft.TicketId
 		INNER JOIN Flights f ON ft.FlightId = f.flightId
 		WHERE f.flightId = @FlightId AND t.SeatNumber = @Seat
 		)
@@ -307,24 +299,17 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Tickets
-        SELECT *
+		INSERT INTO FlightTickets (FlightId, TicketId)
+        SELECT FlightId, TicketId
         FROM INSERTED;
 	END;
 	ELSE 
 	BEGIN
-        UPDATE t
-		SET t.timeOfDeparture = i.timeOfDeparture,
-			t.SeatNumber = i.SeatNumber,
-			t.RowNumber = i.RowNumber,
-			t.ColumnNumber = i.ColumnNumber,
-			t.Class = t.Class,
-			t.Price = i.Price,
-			t.IsBooked = i.IsBooked,
-			t.ModifiedDate = i.ModifiedDate,
-			t.rowguid = i.rowguid
-		FROM Tickets t
-		INNER JOIN INSERTED i ON t.TicketId = i.TicketId;
+        UPDATE ft
+		SET ft.FlightId = i.FlightId,
+			ft.TicketId = i.ticketId
+		FROM FlightTickets ft
+		INNER JOIN INSERTED i ON ft.TicketId = i.TicketId;
     END;
 END;
 Go
@@ -346,8 +331,8 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Planes
-        SELECT *
+		INSERT INTO Planes (airlineCode, name, numberOfRows, numberOfColumns, capacity)
+        SELECT airlineCode, name, numberOfRows, numberOfColumns, capacity
         FROM INSERTED;
 	END;
 	ELSE 
@@ -384,8 +369,8 @@ BEGIN
     END;
     ELSE IF EXISTS (SELECT * FROM inserted)
     BEGIN
-		INSERT INTO Flights
-        SELECT *
+		INSERT INTO Flights (routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed)
+        SELECT routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed
         FROM INSERTED;
 	END;
 	ELSE 
