@@ -110,26 +110,23 @@ BEGIN
 	DECLARE @NumberOfRows INT;
 	DECLARE @NumberOfColumns INT;
 
-	-- Pobierz dane o liczbie wierszy i kolumn z tabeli Planes
 	SELECT @NumberOfRows = numberOfRows, @NumberOfColumns = numberOfColumns
 	FROM Planes
 	WHERE planeId = (SELECT planeUsed FROM Flights WHERE flightId = @p_flightId);
 
-	-- Dodaj biletów z odpowiednimi rz¹dami i kolumnami do tabeli Tickets
 	INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price, ModifiedDate, rowguid)
 	SELECT 
 		SYSDATETIME() AS timeOfDeparture,
 		ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS SeatNumber,
 		(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1) / @NumberOfColumns + 1 AS RowNumber,
 		(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1) % @NumberOfColumns + 1 AS ColumnNumber,
-		1 AS Class, -- Zak³adam, ¿e Class to sta³a wartoœæ, mo¿na dostosowaæ
-		0.0 AS Price, -- Dostosuj cenê wed³ug potrzeb
+		1 AS Class,
+		10.0 AS Price,
 		SYSDATETIME() AS ModifiedDate,
 		NEWID() AS rowguid
 	FROM master.dbo.spt_values v
 	WHERE v.type = 'P' AND v.number BETWEEN 1 AND @NumberOfRows * @NumberOfColumns;
 
-	-- Przypisz bilety do tego lotu w tabeli FlightTickets
 	INSERT INTO FlightTickets (FlightId, TicketId)
 	SELECT @p_flightId AS FlightId, TicketId
 	FROM Tickets
