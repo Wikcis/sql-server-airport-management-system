@@ -1,12 +1,23 @@
 USE AIRPORT;
 Go
 
-INSERT INTO Terminals (ModifiedDate, rowguid) VALUES (GETDATE(), NEWID());
-INSERT INTO Terminals (ModifiedDate, rowguid) VALUES (GETDATE(), NEWID());
+-- Inserting terminals
+INSERT INTO Terminals DEFAULT VALUES;
+INSERT INTO Terminals DEFAULT VALUES;
+INSERT INTO Terminals DEFAULT VALUES;
+INSERT INTO Terminals DEFAULT VALUES;
 
+-- Inserting gates
+INSERT INTO Gates (TerminalId) VALUES (1);
+INSERT INTO Gates (TerminalId) VALUES (1);
 INSERT INTO Gates (TerminalId) VALUES (1);
 INSERT INTO Gates (TerminalId) VALUES (2);
+INSERT INTO Gates (TerminalId) VALUES (2);
+INSERT INTO Gates (TerminalId) VALUES (3);
+INSERT INTO Gates (TerminalId) VALUES (3);
+INSERT INTO Gates (TerminalId) VALUES (4);
 
+-- Inserting addresses
 INSERT INTO Addresses (country, city, postalCode, street, buildingNumber) 
 VALUES ('Country1', 'City1', '12345', 'Street1', '1A');
 INSERT INTO Addresses (country, city, postalCode, street, buildingNumber) 
