@@ -12,7 +12,7 @@ Go
 -- Tables --------------------------------------------------------------------------
 
 -- Terminals table
-CREATE TABLE Terminals (
+CREATE TABLE dbo.Terminals (
     terminalId INT PRIMARY KEY IDENTITY(1,1),
     ModifiedDate DATETIME DEFAULT GETDATE(),
     rowguid UNIQUEIDENTIFIER DEFAULT NEWID(),
@@ -20,7 +20,7 @@ CREATE TABLE Terminals (
 GO
 
 -- Gates table
-CREATE TABLE Gates (
+CREATE TABLE dbo.Gates (
     gateId INT PRIMARY KEY IDENTITY(1,1),
 	terminalId INT FOREIGN KEY REFERENCES terminals(terminalId),
     ModifiedDate DATETIME DEFAULT GETDATE(),
@@ -29,7 +29,7 @@ CREATE TABLE Gates (
 GO
 
 -- addresses table
-CREATE TABLE Addresses (
+CREATE TABLE dbo.Addresses (
     addressId INT PRIMARY KEY IDENTITY(1,1),
     country VARCHAR(50) NOT NULL,
     city VARCHAR(50) NOT NULL,
@@ -41,7 +41,7 @@ CREATE TABLE Addresses (
 );
 
 -- Passengers table
-CREATE TABLE Passengers (
+CREATE TABLE dbo.Passengers (
 	passengerId INT PRIMARY KEY IDENTITY(1,1),
     passportNumber VARCHAR(20) NOT NULL,
     firstName VARCHAR(50) NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE Passengers (
 GO
 
 -- Planes table
-CREATE TABLE Planes (
+CREATE TABLE dbo.Planes (
     planeId INT PRIMARY KEY IDENTITY(1,1),
     airlineCode VARCHAR(10),
     name VARCHAR(50) NOT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE Planes (
 GO
 
 -- Employees table
-CREATE TABLE Employees (
+CREATE TABLE dbo.Employees (
     employeeId INT PRIMARY KEY IDENTITY(1,1),
     firstName VARCHAR(50) NOT NULL,
     lastName VARCHAR(50) NOT NULL,
@@ -86,7 +86,7 @@ CREATE TABLE Employees (
 GO
 
 -- Airports table
-CREATE TABLE Airports (
+CREATE TABLE dbo.Airports (
     airportId INT PRIMARY KEY IDENTITY(1,1),
     name VARCHAR(50) NOT NULL,
     addressId INT FOREIGN KEY REFERENCES addresses(addressId),
@@ -96,7 +96,7 @@ CREATE TABLE Airports (
 GO
 
 -- Routes table
-CREATE TABLE Routes (
+CREATE TABLE dbo.Routes (
     routeId INT PRIMARY KEY IDENTITY(1,1),
     sourceAirport INT FOREIGN KEY REFERENCES airports(airportId) NOT NULL,
     destinationAirport INT FOREIGN KEY REFERENCES airports(airportId) NOT NULL,
@@ -105,7 +105,7 @@ CREATE TABLE Routes (
 );
 
 -- DeparturePlaces table
-CREATE TABLE DeparturePlaces (
+CREATE TABLE dbo.DeparturePlaces (
     departurePlaceId INT PRIMARY KEY IDENTITY(1,1),
     departureTerminalId INT FOREIGN KEY REFERENCES terminals(terminalId),
     departureGateId INT FOREIGN KEY REFERENCES gates(gateId),
@@ -115,7 +115,7 @@ CREATE TABLE DeparturePlaces (
 Go
 
 -- Flights table
-CREATE TABLE Flights (
+CREATE TABLE dbo.Flights (
     flightId INT PRIMARY KEY IDENTITY(1,1),
     routeId INT FOREIGN KEY REFERENCES routes(routeId),
     timeOfDeparture DATETIME NOT NULL,
@@ -130,7 +130,7 @@ CREATE TABLE Flights (
 GO
 
 -- Tickets table
-CREATE TABLE Tickets (
+CREATE TABLE dbo.Tickets (
     TicketId INT PRIMARY KEY IDENTITY(1,1),
 	timeOfDeparture DATETIME NOT NULL,
     SeatNumber INT NOT NULL,
@@ -144,7 +144,7 @@ CREATE TABLE Tickets (
 Go
 
 -- PassengerTickets table
-CREATE TABLE PassengerTickets (
+CREATE TABLE dbo.PassengerTickets (
     PassengerId INT FOREIGN KEY REFERENCES Passengers(PassengerId),
     TicketId INT FOREIGN KEY REFERENCES Tickets(TicketId),
 	PRIMARY KEY (PassengerId,TicketId),
@@ -153,7 +153,7 @@ CREATE TABLE PassengerTickets (
 );
 
 -- FlightTickets table
-CREATE TABLE FlightTickets (
+CREATE TABLE dbo.FlightTickets (
     FlightId INT FOREIGN KEY REFERENCES Flights(FlightId),
     TicketId INT FOREIGN KEY REFERENCES Tickets(TicketId),
     PRIMARY KEY (FlightId, TicketId),
@@ -162,7 +162,7 @@ CREATE TABLE FlightTickets (
 );
 
 -- EventLogs table
-CREATE TABLE EventLogs (
+CREATE TABLE dbo.EventLogs (
     eventId INT PRIMARY KEY IDENTITY(1,1),
     loggedBy INT FOREIGN KEY REFERENCES Employees(employeeId),
     loggedOn INT FOREIGN KEY REFERENCES Passengers(passengerId),
