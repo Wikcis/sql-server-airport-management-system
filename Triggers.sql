@@ -28,14 +28,13 @@ BEGIN
 			SELECT * FROM inserted;
 		END;
 	END;
-	
 END;
 Go
 
 --Trigger to check if the time of departure on the ticket is in the past
 CREATE OR ALTER TRIGGER check_if_ticket_date_in_past
 ON Tickets
-FOR INSERT, UPDATE
+FOR INSERT
 AS
 BEGIN
 	
@@ -93,8 +92,7 @@ BEGIN
 				f.duration = i.duration,
 				f.addedBy = i.addedBy,
 				f.planeUsed = i.planeUsed,
-				f.ModifiedDate = i.ModifiedDate,
-				f.rowguid = i.rowguid
+				f.ModifiedDate = GETDATE()
 			FROM Flights f
 			INNER JOIN INSERTED i ON f.FlightId = i.FlightId;
 		END;
@@ -129,8 +127,7 @@ BEGIN
 			UPDATE r
 			SET r.sourceAirport = i.sourceAirport,
 				r.destinationAirport = i.destinationAirport,
-				r.ModifiedDate = i.ModifiedDate,
-				r.rowguid = i.rowguid
+				r.ModifiedDate = GETDATE()
 			FROM Routes r
 			INNER JOIN INSERTED i ON r.routeId = i.routeId;
 		END;
@@ -203,7 +200,8 @@ BEGIN
 		BEGIN
 			UPDATE ft
 			SET ft.FlightId = i.FlightId,
-				ft.TicketId = i.TicketId
+				ft.TicketId = i.TicketId,
+				ft.ModifiedDate = GETDATE()
 			FROM FlightTickets ft
 			INNER JOIN INSERTED i ON ft.TicketId = i.TicketId;
 		END;
@@ -256,8 +254,7 @@ BEGIN
 				t.ColumnNumber = i.ColumnNumber,
 				t.Class = t.Class,
 				t.Price = i.Price,
-				t.ModifiedDate = i.ModifiedDate,
-				t.rowguid = i.rowguid
+				t.ModifiedDate = GETDATE()
 			FROM Tickets t
 			INNER JOIN INSERTED i ON t.TicketId = i.TicketId;
 		END;
@@ -307,7 +304,8 @@ BEGIN
 		BEGIN
 			UPDATE ft
 			SET ft.FlightId = i.FlightId,
-				ft.TicketId = i.ticketId
+				ft.TicketId = i.ticketId,
+				ft.ModifiedDate = GETDATE()
 			FROM FlightTickets ft
 			INNER JOIN INSERTED i ON ft.TicketId = i.TicketId;
 		END;
@@ -345,8 +343,7 @@ BEGIN
 				p.numberOfRows = i.numberOfRows,
 				p.numberOfColumns = i.numberOfColumns,
 				p.capacity = i.capacity,
-				p.ModifiedDate = i.ModifiedDate,
-				p.rowguid = i.rowguid
+				p.ModifiedDate = GETDATE()
 			FROM Planes p
 			INNER JOIN INSERTED i ON p.planeId = i.planeId;
 		END;
