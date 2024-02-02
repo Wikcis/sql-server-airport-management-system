@@ -1,6 +1,8 @@
 USE AIRPORT;
 Go
 
+-- Procedures ---------------------------------------------------------------------
+
 -- Procedure to add employee with address
 CREATE OR ALTER PROCEDURE addEmployeeWithAddress
     @p_firstName VARCHAR(50),
