@@ -1,46 +1,35 @@
-REVERT;
-ALTER ROLE db_owner DROP MEMBER admin_user;
-ALTER ROLE db_owner DROP MEMBER flight_manager_user;
-ALTER ROLE db_owner DROP MEMBER terminal_manager_user;
-ALTER ROLE db_owner DROP MEMBER gate_manager_user;
-ALTER ROLE db_owner DROP MEMBER passenger_user;
+USE AIRPORT;
+Go
 
-USE AIRPORT; 
-DROP LOGIN AdminLOGIN;
-DROP LOGIN FlightManagerLOGIN;
-DROP LOGIN TerminalManagerLOGIN;
-DROP LOGIN GateManagerLOGIN;
-DROP LOGIN PassengerLOGIN;
+-- Roles ----------------------------------------------------------------
 
-DROP ROLE IF EXISTS Admin;
-DROP ROLE IF EXISTS FlightManager;
-DROP ROLE IF EXISTS TerminalManager;
-DROP ROLE IF EXISTS GateManager;
-DROP ROLE IF EXISTS Passenger;
-
+-- Creating logins
 CREATE LOGIN AdminLOGIN WITH PASSWORD = 'Password123';
 CREATE LOGIN FlightManagerLOGIN WITH PASSWORD = 'Password123';
 CREATE LOGIN TerminalManagerLOGIN WITH PASSWORD = 'Password123';
 CREATE LOGIN GateManagerLOGIN WITH PASSWORD = 'Password123';
 CREATE LOGIN PassengerLOGIN WITH PASSWORD = 'Password123';
 
-CREATE USER admin_user FOR LOGIN AdminLOGIN;
-CREATE USER flight_manager_user FOR LOGIN FlightManagerLOGIN;
-CREATE USER terminal_manager_user FOR LOGIN TerminalManagerLOGIN;
-CREATE USER gate_manager_user FOR LOGIN GateManagerLOGIN;
-CREATE USER passenger_user FOR LOGIN PassengerLOGIN;
+-- Creating users
+CREATE USER adminUSER FOR LOGIN AdminLOGIN;
+CREATE USER flightManagerUSER FOR LOGIN FlightManagerLOGIN;
+CREATE USER terminalManagerUSER FOR LOGIN TerminalManagerLOGIN;
+CREATE USER gateManagerUSER FOR LOGIN GateManagerLOGIN;
+CREATE USER passengerUSER FOR LOGIN PassengerLOGIN;
 
+-- Creating roles
 CREATE ROLE Admin;
 CREATE ROLE FlightManager;
 CREATE ROLE TerminalManager;
 CREATE ROLE GateManager;
 CREATE ROLE Passenger;
 
-ALTER ROLE Admin ADD MEMBER admin_user;
-ALTER ROLE FlightManager ADD MEMBER flight_manager_user;
-ALTER ROLE TerminalManager ADD MEMBER terminal_manager_user;
-ALTER ROLE GateManager ADD MEMBER gate_manager_user;
-ALTER ROLE Passenger ADD MEMBER passenger_user;
+-- Add members to roles
+ALTER ROLE Admin ADD MEMBER adminUSER;
+ALTER ROLE FlightManager ADD MEMBER flightManagerUSER;
+ALTER ROLE TerminalManager ADD MEMBER terminalManagerUSER;
+ALTER ROLE GateManager ADD MEMBER gateManagerUSER;
+ALTER ROLE Passenger ADD MEMBER passengerUSER;
 
 -- Grant permissions to Admin role
 GRANT CONTROL ON DATABASE::AIRPORT TO Admin;
@@ -63,11 +52,4 @@ GRANT INSERT, SELECT, UPDATE ON dbo.EventLogs TO GateManager;
 GRANT SELECT ON dbo.AvailableTickets TO Passenger;
 GRANT EXECUTE ON dbo.bookTicket TO Passenger;
 GRANT EXECUTE ON dbo.bookSpecifyTicket TO Passenger;
-
--- Add members to roles
-ALTER ROLE Admin ADD MEMBER [admin_user];
-ALTER ROLE FlightManager ADD MEMBER [flight_manager_user];
-ALTER ROLE TerminalManager ADD MEMBER [terminal_manager_user];
-ALTER ROLE GateManager ADD MEMBER [gate_manager_user];
-ALTER ROLE Passenger ADD MEMBER [passenger_user];
 

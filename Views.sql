@@ -1,5 +1,8 @@
 USE AIRPORT;
 Go
+
+-- Views ----------------------------------------------------------------------
+
 -- View to display ticket informations and a passenger on this ticket
 CREATE OR ALTER VIEW TicketInformation AS
 SELECT

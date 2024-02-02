@@ -59,7 +59,6 @@ BEGIN
 END;
 GO
 
-
 --Trigger to check if the departure is before arrival
 CREATE OR ALTER TRIGGER check_if_departure_before_arrival
 ON Flights
