@@ -39,14 +39,17 @@ GRANT INSERT, SELECT, UPDATE ON dbo.Flights TO FlightManager;
 GRANT INSERT, SELECT, UPDATE ON dbo.Tickets TO FlightManager;
 GRANT INSERT, SELECT, UPDATE ON dbo.EventLogs TO FlightManager;
 GRANT EXECUTE ON dbo.addTicketsForFlight TO FlightManager;
+GRANT EXECUTE ON dbo.GetEmployeeForFlight TO FlightManager;
 
 -- Grant permissions to TerminalManager role
 GRANT INSERT, SELECT, UPDATE ON dbo.Terminals TO TerminalManager;
 GRANT INSERT, SELECT, UPDATE ON dbo.EventLogs TO TerminalManager;
+GRANT EXECUTE ON dbo.GetGateCountForTerminal TO TerminalManager;
 
 -- Grant permissions to GateManager role
 GRANT INSERT, SELECT, UPDATE ON dbo.Gates TO GateManager;
 GRANT INSERT, SELECT, UPDATE ON dbo.EventLogs TO GateManager;
+GRANT EXECUTE ON dbo.GetGateModificationDayOfWeek TO GateManager;
 
 -- Grant permissions to Passenger role
 GRANT SELECT ON dbo.AvailableTickets TO Passenger;
