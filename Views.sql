@@ -44,6 +44,7 @@ Go
 CREATE OR ALTER VIEW BookedTickets AS
 SELECT
     t.TicketId,
+	ft.FlightId,
     t.timeOfDeparture,
     t.SeatNumber,
     t.RowNumber,
@@ -54,12 +55,15 @@ FROM
     Tickets t
 INNER JOIN
     PassengerTickets pt ON t.TicketId = pt.TicketId
+INNER JOIN 
+	FlightTickets ft ON ft.ticketId = t.ticketId
 Go
 
 -- View to display tickets that available to book
 CREATE OR ALTER VIEW AvailableTickets AS
 SELECT
     t.TicketId,
+	ft.flightId,
     t.timeOfDeparture,
     t.SeatNumber,
     t.RowNumber,
@@ -68,6 +72,8 @@ SELECT
     t.Price
 FROM
     Tickets t
+INNER JOIN 
+	FlightTickets ft ON ft.ticketId = t.ticketId
 WHERE
     NOT EXISTS (
         SELECT 1
@@ -77,3 +83,21 @@ WHERE
             pt.TicketId = t.TicketId
     );
 GO
+
+-- View to display flight and its tickets
+CREATE OR ALTER VIEW TicketsInFlight AS
+SELECT
+	ft.flightId,
+    t.TicketId,
+    t.timeOfDeparture,
+    t.SeatNumber,
+    t.RowNumber,
+    t.ColumnNumber,
+    t.Class,
+    t.Price
+FROM
+    Tickets t
+INNER JOIN 
+	FlightTickets ft ON ft.ticketId = t.ticketId
+GO
+

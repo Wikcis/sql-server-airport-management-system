@@ -68,12 +68,46 @@ CREATE OR ALTER PROCEDURE bookSpecifyTicket
 	@p_passportNumber VARCHAR(20)
 AS
 BEGIN
+	
+	IF NOT EXISTS (
+		SELECT * 
+		FROM FLIGHTS 
+		WHERE FlightId = @p_flightId
+	)
+	BEGIN
+		print('There is not any flight with this id.')
+		return;
+	END;
+	IF NOT EXISTS (
+		SELECT * 
+		FROM FlightTickets ft
+		INNER JOIN Tickets t On ft.TicketId = t.TicketId 
+		WHERE FlightId = @p_flightId AND SeatNumber = @p_seatNumber
+	)
+	BEGIN
+		print('There is not any seat in this plane with this id.')
+		return;
+	END;
+	IF NOT EXISTS (
+		SELECT * 
+		FROM Passengers 
+		WHERE passportNumber = @p_passportNumber
+	)
+	BEGIN
+		print('There is not any passenger with this passport number.')
+		return;
+	END;
+
 	DECLARE @v_passengerId INT;
 	DECLARE @v_ticketId INT;
 	
 	SET @v_passengerId = (SELECT passengerId FROM Passengers WHERE passportNumber = @p_passportNumber);
 
-	SET @v_ticketId = (SELECT TicketId FROM Tickets WHERE SeatNumber = @p_seatNumber);
+	SET @v_ticketId = (SELECT t.TicketId 
+		FROM Tickets t 
+		INNER JOIN FlightTickets ft ON ft.TicketId = t.TicketId 
+		WHERE SeatNumber = @p_seatNumber AND ft.FlightId = @p_flightId
+	);
 
 	INSERT INTO PassengerTickets (PassengerId, TicketId)
 	SELECT @v_passengerId, @v_ticketId
@@ -88,6 +122,24 @@ CREATE OR ALTER PROCEDURE bookTicket
 	@p_passportNumber VARCHAR(20)
 AS
 BEGIN
+	IF NOT EXISTS (
+		SELECT * 
+		FROM FLIGHTS 
+		WHERE FlightId = @p_flightId
+	)
+	BEGIN
+		print('There is not any flight with this id.');
+		return;
+	END;
+	IF NOT EXISTS (
+		SELECT * 
+		FROM Passengers 
+		WHERE passportNumber = @p_passportNumber
+	)
+	BEGIN
+		print('There is not any passenger with this passport number.')
+		return;
+	END;
 	DECLARE @v_passengerId INT;
 	DECLARE @v_ticketId INT;
 
@@ -106,32 +158,52 @@ Go
 
 -- Procedure to add tickets for every seat on the Plane
 CREATE OR ALTER PROCEDURE addTicketsForFlight
-	@p_flightId INT
+    @p_flightId INT
 AS
 BEGIN
-	DECLARE @NumberOfRows INT;
-	DECLARE @NumberOfColumns INT;
+	IF NOT EXISTS (
+		SELECT * 
+		FROM FLIGHTS 
+		WHERE FlightId = @p_flightId
+	)
+	BEGIN
+		print('There is not any flight with this id.');
+		return;
+	END;	
+    DECLARE @NumberOfRows INT;
+    DECLARE @NumberOfColumns INT;
+    DECLARE @timeOfDeparture DATE;
 
-	SELECT @NumberOfRows = numberOfRows, @NumberOfColumns = numberOfColumns
-	FROM Planes
-	WHERE planeId = (SELECT planeUsed FROM Flights WHERE flightId = @p_flightId);
+    SELECT @timeOfDeparture = timeOfDeparture FROM Flights;
 
-	INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price, ModifiedDate, rowguid)
-	SELECT 
-		SYSDATETIME() AS timeOfDeparture,
-		ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS SeatNumber,
-		(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1) / @NumberOfColumns + 1 AS RowNumber,
-		(ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) - 1) % @NumberOfColumns + 1 AS ColumnNumber,
-		1 AS Class,
-		10.0 AS Price,
-		SYSDATETIME() AS ModifiedDate,
-		NEWID() AS rowguid
-	FROM master.dbo.spt_values v
-	WHERE v.type = 'P' AND v.number BETWEEN 1 AND @NumberOfRows * @NumberOfColumns;
+    SELECT @NumberOfRows = numberOfRows, @NumberOfColumns = numberOfColumns
+    FROM Planes
+    WHERE planeId = (SELECT planeUsed FROM Flights WHERE flightId = @p_flightId);
 
-	INSERT INTO FlightTickets (FlightId, TicketId)
-	SELECT @p_flightId AS FlightId, TicketId
-	FROM Tickets
-	WHERE TicketId BETWEEN SCOPE_IDENTITY() - @@ROWCOUNT + 1 AND SCOPE_IDENTITY();
-END
+    DECLARE @SeatNumber INT;
+    DECLARE @RowNumber INT;
+    DECLARE @ColumnNumber INT;
+
+    DECLARE @Counter INT = 1;
+	DECLARE @id INT = (SELECT TOP 1 TicketId FROM Tickets ORDER BY TicketId DESC);
+    WHILE @Counter <= @NumberOfRows * @NumberOfColumns
+    BEGIN
+        SET @SeatNumber = @Counter;
+        SET @RowNumber = (@Counter - 1) / @NumberOfColumns + 1;
+        SET @ColumnNumber = (@Counter - 1) % @NumberOfColumns + 1;
+        INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price)
+        VALUES (
+            @timeOfDeparture,
+            @SeatNumber,
+            @RowNumber,
+            @ColumnNumber,
+            1, 
+            10.0
+        );
+		SET @id = @id + 1;
+        INSERT INTO FlightTickets (FlightId, TicketId)
+        VALUES (@p_flightId, @id);
+        SET @Counter = @Counter + 1;
+    END;
+END;
 GO

@@ -5,28 +5,21 @@ Go
 --Trigger to check if the ticket is available to book, so if it is booked
 CREATE OR ALTER TRIGGER check_ticket_availability
 ON PassengerTickets
-FOR INSERT
+INSTEAD OF INSERT
 AS
 BEGIN
-	
-	IF NOT EXISTS (SELECT 1 FROM PassengerTickets pt INNER JOIN INSERTED i ON pt.TicketId = i.TicketId)
+	IF NOT EXISTS (
+		SELECT 1
+		FROM AvailableTickets at
+		INNER JOIN INSERTED i ON at.TicketId = i.TicketId
+	)
 	BEGIN
-		DECLARE @p_ticketId INT;
-		SET @p_ticketId = (SELECT ticketId FROM inserted);
-		IF EXISTS (
-			SELECT *
-			FROM PassengerTickets pt
-			INNER JOIN INSERTED i ON pt.TicketId = i.TicketId
-			WHERE pt.ticketId = @p_ticketId
-		)
-		BEGIN
-			RAISERROR ('Ticket is already booked.', 16, 1);
-		END;
-		ELSE
-		BEGIN
-			INSERT INTO PassengerTickets
-			SELECT * FROM inserted;
-		END;
+		RAISERROR ('Ticket is already booked.', 16, 1);
+	END;
+	ELSE
+	BEGIN
+		INSERT INTO PassengerTickets
+		SELECT * FROM inserted;
 	END;
 END;
 Go
@@ -34,67 +27,80 @@ Go
 --Trigger to check if the time of departure on the ticket is in the past
 CREATE OR ALTER TRIGGER check_if_ticket_date_in_past
 ON Tickets
-FOR INSERT
+INSTEAD OF INSERT
 AS
 BEGIN
 	
-	IF NOT EXISTS (SELECT 1 FROM Tickets t INNER JOIN INSERTED i ON t.TicketId = i.TicketId)
+	IF EXISTS (
+		SELECT 1
+		FROM INSERTED i
+		WHERE i.timeOfDeparture < SYSDATETIME()
+	)
 	BEGIN
-		IF EXISTS (
-			SELECT 1
-			FROM INSERTED i
-			WHERE i.timeOfDeparture < SYSDATETIME()
-		)
-		BEGIN
-			RAISERROR ('Ticket has departure date in the past.', 16, 1);
-		END;
-		ELSE IF EXISTS (SELECT * FROM inserted)
-		BEGIN
-			INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price)
-			SELECT timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price
-			FROM INSERTED;
-		END;
-    END;
-    
+		RAISERROR ('Ticket has departure date in the past.', 16, 1);
+	END;
+	ELSE IF EXISTS (SELECT * FROM inserted)
+	BEGIN
+		INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price)
+		SELECT timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price
+		FROM INSERTED;
+	END;
 END;
 GO
 
---Trigger to check if the departure is before arrival
-CREATE OR ALTER TRIGGER check_if_departure_before_arrival
-ON Flights
-FOR INSERT, UPDATE
+--Trigger to check if the ticket has free seat, row and column and to check if number of tickets is smaller or equal to capacity
+CREATE OR ALTER TRIGGER check_if_ticket_is_valid
+ON FlightTickets
+INSTEAD OF INSERT
 AS
 BEGIN
-	IF NOT EXISTS (SELECT 1 FROM Flights f INNER JOIN INSERTED i ON f.flightId = i.flightId)
-	BEGIN 
-		IF EXISTS (
-			SELECT 1
-			FROM INSERTED i
-			WHERE i.timeOfDeparture > i.timeOfArrival
+	DECLARE @FlightId INT;
+	DECLARE @TicketId INT;
+	DECLARE @Seat INT;
+	DECLARE @Row INT;
+	DECLARE @Column INT;
+	DECLARE @Capacity INT;
+
+	SELECT @FlightId = i.FlightId
+	FROM INSERTED i;
+
+	SELECT @TicketId = i.TicketId
+	FROM INSERTED i;
+	
+	SELECT @Row = t.RowNumber, @Column = t.ColumnNumber
+	FROM inserted i
+	INNER JOIN Tickets t ON t.TicketId = i.TicketId;
+
+	SELECT @Seat = t.SeatNumber
+	FROM Tickets t
+	WHERE t.TicketId = @TicketId;
+
+	SELECT @Capacity = p.capacity 
+	FROM Planes p
+	WHERE planeId = (SELECT planeUsed FROM Flights WHERE flightId = @FlightId);
+
+	IF EXISTS (
+		SELECT *
+		FROM FlightTickets ft 
+		INNER JOIN Tickets t ON t.TicketId = ft.TicketId
+		WHERE ft.flightId = @FlightId AND (t.SeatNumber = @Seat OR (t.RowNumber = @Row AND t.ColumnNumber = @Column))
 		)
-		BEGIN
-			RAISERROR ('Time of departure must be before the arrival', 16, 1);
-		END;
-		ELSE IF EXISTS (SELECT * FROM inserted)
-		BEGIN
-			INSERT INTO Flights (routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed)
-			SELECT routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed
-			FROM INSERTED;
-		END;
-		ELSE 
-		BEGIN
-			UPDATE f
-			SET f.routeId = i.routeId,
-				f.timeOfDeparture = i.timeOfDeparture,
-				f.timeOfArrival = i.timeOfArrival,
-				f.departurePlaceId = i.departurePlaceId,
-				f.duration = i.duration,
-				f.addedBy = i.addedBy,
-				f.planeUsed = i.planeUsed,
-				f.ModifiedDate = GETDATE()
-			FROM Flights f
-			INNER JOIN INSERTED i ON f.FlightId = i.FlightId;
-		END;
+	BEGIN
+		RAISERROR ('Ticket must have unique seat, row, and column in the same flight.', 16, 1);
+	END;
+	ELSE IF (
+		SELECT COUNT(*)
+		FROM FlightTickets ft 
+		WHERE ft.flightId = @FlightId
+		) >= @Capacity 
+	BEGIN
+		RAISERROR ('Number of tickets must be smaller or equal to capacity', 16, 1);
+	END;
+	ELSE IF EXISTS (SELECT * FROM inserted)
+	BEGIN
+		INSERT INTO FlightTickets (FlightId, TicketId)
+		SELECT FlightId, TicketId
+		FROM INSERTED;
 	END;
 END;
 Go
@@ -102,212 +108,22 @@ Go
 --Trigger to check if the source of the flight is different to destination
 CREATE OR ALTER TRIGGER check_if_source_and_destination_different
 ON Routes
-FOR INSERT, UPDATE
-AS
-BEGIN
-	IF NOT EXISTS (SELECT 1 FROM Routes r INNER JOIN INSERTED i ON r.routeId = i.routeId)
-	BEGIN
-		IF EXISTS (
-			SELECT 1
-			FROM INSERTED i
-			WHERE i.sourceAirport = i.destinationAirport
-		)
-		BEGIN
-			RAISERROR ('Destination of the flight must be different from source.', 16, 1);
-		END;
-		ELSE IF EXISTS (SELECT * FROM inserted)
-		BEGIN
-			INSERT INTO Routes (sourceAirport, destinationAirport)
-			SELECT sourceAirport, destinationAirport
-			FROM INSERTED;
-		END;
-		ELSE 
-		BEGIN
-			UPDATE r
-			SET r.sourceAirport = i.sourceAirport,
-				r.destinationAirport = i.destinationAirport,
-				r.ModifiedDate = GETDATE()
-			FROM Routes r
-			INNER JOIN INSERTED i ON r.routeId = i.routeId;
-		END;
-	END;
-END;
-Go
-
--- Trigger to check if the departure time of the flight is in the past
-CREATE OR ALTER TRIGGER check_if_departure_in_past
-ON Flights
 INSTEAD OF INSERT
 AS
 BEGIN
-	IF NOT EXISTS (SELECT 1 FROM Flights f INNER JOIN INSERTED i ON f.flightId = i.flightId)
-	BEGIN 
-		IF EXISTS (
-			SELECT 1
-			FROM INSERTED i
-			WHERE i.timeOfDeparture < SYSDATETIME()
-		)
-		BEGIN
-			RAISERROR ('Time of departure must be in the future.', 16, 1);
-		END;
-		ELSE
-		BEGIN
-			INSERT INTO Flights (routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed)
-			SELECT routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed
-			FROM INSERTED;
-		END;
-	END;
-END;
-Go
-
-
---Trigger to check if the number of tickets is smaller or equal to capacity
-CREATE OR ALTER TRIGGER check_if_number_of_tickets_smaller_or_equal_to_capacity
-ON FlightTickets
-FOR INSERT, UPDATE
-AS
-BEGIN
-	IF NOT EXISTS (SELECT 1 FROM FlightTickets ft INNER JOIN INSERTED i ON ft.flightId = i.flightId WHERE ft.TicketId = i.TicketId)
-	BEGIN
-		DECLARE @FlightId INT;
-		DECLARE @TotalSeats INT;
-		DECLARE @OccupiedSeats INT;
-
-		SELECT @FlightId = i.FlightId
-		FROM INSERTED i;
-
-		SELECT @TotalSeats = p.capacity
-		FROM Flights f
-		INNER JOIN Planes p ON f.planeUsed = p.planeId
-		WHERE f.flightId = @FlightId;
-
-		SELECT @OccupiedSeats = COUNT(*)
-		FROM FlightTickets ft
-		WHERE ft.FlightId = @FlightId;
-
-		IF @OccupiedSeats > @TotalSeats
-		BEGIN
-			RAISERROR ('Number of tickets must be smaller or equal to number of seats.', 16, 1);
-		END;
-		ELSE IF EXISTS (SELECT * FROM inserted)
-		BEGIN
-			INSERT INTO FlightTickets
-			SELECT *
-			FROM INSERTED;
-		END;
-		ELSE 
-		BEGIN
-			UPDATE ft
-			SET ft.FlightId = i.FlightId,
-				ft.TicketId = i.TicketId,
-				ft.ModifiedDate = GETDATE()
-			FROM FlightTickets ft
-			INNER JOIN INSERTED i ON ft.TicketId = i.TicketId;
-		END;
-	END;   
-END;
-Go
-
---Trigger to check if the ticket has unique row and column
-CREATE OR ALTER TRIGGER check_if_ticket_is_unique
-ON Tickets
-INSTEAD OF INSERT, UPDATE
-AS
-BEGIN
-	IF NOT EXISTS (SELECT 1 FROM Tickets t INNER JOIN INSERTED i ON t.TicketId = i.TicketId)
-	BEGIN
-		DECLARE @FlightId INT;
-		DECLARE @Row INT;
-		DECLARE @Column INT;
-
-		SELECT @FlightId = f.FlightId
+	IF EXISTS (
+		SELECT 1
 		FROM INSERTED i
-		INNER JOIN FlightTickets ft ON i.TicketId = ft.TicketId
-		INNER JOIN Flights f ON ft.FlightId = f.flightId;
-
-		SELECT @Row = i.RowNumber, @Column = i.ColumnNumber
-		FROM inserted i;
-
-		IF EXISTS (
-			SELECT *
-			FROM Tickets t 
-			INNER JOIN FlightTickets ft ON t.TicketId = ft.TicketId
-			INNER JOIN Flights f ON ft.FlightId = f.flightId
-			WHERE f.flightId = @FlightId AND t.RowNumber = @Row AND t.ColumnNumber = @Column
-			)
-		BEGIN
-			RAISERROR ('Ticket must have unique row and column in the same flight.', 16, 1);
-		END;
-		ELSE IF EXISTS (SELECT * FROM inserted)
-		BEGIN
-			INSERT INTO Tickets (timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price)
-			SELECT timeOfDeparture, SeatNumber, RowNumber, ColumnNumber, Class, Price
-			FROM INSERTED;
-		END;
-		ELSE 
-		BEGIN
-			UPDATE t
-			SET t.timeOfDeparture = i.timeOfDeparture,
-				t.SeatNumber = i.SeatNumber,
-				t.RowNumber = i.RowNumber,
-				t.ColumnNumber = i.ColumnNumber,
-				t.Class = t.Class,
-				t.Price = i.Price,
-				t.ModifiedDate = GETDATE()
-			FROM Tickets t
-			INNER JOIN INSERTED i ON t.TicketId = i.TicketId;
-		END;
+		WHERE i.sourceAirport = i.destinationAirport
+	)
+	BEGIN
+		RAISERROR ('Destination of the flight must be different from source.', 16, 1);
 	END;
-END;
-Go
-
---Trigger to check if the ticket has free seat
-CREATE OR ALTER TRIGGER check_if_ticket_has_free_seat
-ON FlightTickets
-FOR INSERT, UPDATE
-AS
-BEGIN
-	IF NOT EXISTS (SELECT 1 FROM FlightTickets ft INNER JOIN INSERTED i ON ft.flightId = i.flightId WHERE ft.TicketId = i.TicketId)
-	BEGIN 
-		DECLARE @FlightId INT;
-		DECLARE @TicketId INT;
-		DECLARE @Seat INT;
-
-		SELECT @FlightId = i.FlightId
-		FROM INSERTED i;
-
-		SELECT @TicketId = i.TicketId
-		FROM INSERTED i;
-
-		SELECT @Seat = t.SeatNumber
-		FROM Tickets t
-		WHERE t.TicketId = @TicketId;
-
-		IF EXISTS (
-			SELECT *
-			FROM FlightTickets ft 
-			INNER JOIN Tickets t ON t.TicketId = ft.TicketId
-			INNER JOIN Flights f ON ft.FlightId = f.flightId
-			WHERE f.flightId = @FlightId AND t.SeatNumber = @Seat
-			)
-		BEGIN
-			RAISERROR ('Ticket must have unique seat in the same flight.', 16, 1);
-		END;
-		ELSE IF EXISTS (SELECT * FROM inserted)
-		BEGIN
-			INSERT INTO FlightTickets (FlightId, TicketId)
-			SELECT FlightId, TicketId
-			FROM INSERTED;
-		END;
-		ELSE 
-		BEGIN
-			UPDATE ft
-			SET ft.FlightId = i.FlightId,
-				ft.TicketId = i.ticketId,
-				ft.ModifiedDate = GETDATE()
-			FROM FlightTickets ft
-			INNER JOIN INSERTED i ON ft.TicketId = i.TicketId;
-		END;
+	ELSE IF EXISTS (SELECT * FROM inserted)
+	BEGIN
+		INSERT INTO Routes (sourceAirport, destinationAirport)
+		SELECT sourceAirport, destinationAirport
+		FROM INSERTED;
 	END;
 END;
 Go
@@ -315,37 +131,53 @@ Go
 --Trigger to check if the number of rows times number of columns are equal to capacity
 CREATE OR ALTER TRIGGER check_if_capacity_correct
 ON Planes
-FOR INSERT, UPDATE
+INSTEAD OF INSERT
 AS
 BEGIN
-	IF NOT EXISTS (SELECT 1 FROM Planes p INNER JOIN INSERTED i ON p.planeId = i.planeId)
+	IF EXISTS (
+		SELECT 1
+		FROM INSERTED i
+		WHERE i.numberOfRows * i.numberOfColumns != i.capacity
+	)
 	BEGIN
-		IF EXISTS (
-			SELECT 1
-			FROM INSERTED i
-			WHERE i.numberOfRows * i.numberOfColumns != i.capacity
-		)
-		BEGIN
-			RAISERROR ('Number of tickets must be smaller or equal to number of seats.', 16, 1);
-		END;
-		ELSE IF EXISTS (SELECT * FROM inserted)
-		BEGIN
-			INSERT INTO Planes (airlineCode, name, numberOfRows, numberOfColumns, capacity)
-			SELECT airlineCode, name, numberOfRows, numberOfColumns, capacity
-			FROM INSERTED;
-		END;
-		ELSE 
-		BEGIN
-			UPDATE p
-			SET p.airlineCode = i.airlineCode,
-				p.name = i.name,
-				p.numberOfRows = i.numberOfRows,
-				p.numberOfColumns = i.numberOfColumns,
-				p.capacity = i.capacity,
-				p.ModifiedDate = GETDATE()
-			FROM Planes p
-			INNER JOIN INSERTED i ON p.planeId = i.planeId;
-		END;
-	END;   
+		RAISERROR ('Number of tickets must be smaller or equal to number of seats.', 16, 1);
+	END;
+	ELSE IF EXISTS (SELECT * FROM inserted)
+	BEGIN
+		INSERT INTO Planes (airlineCode, name, numberOfRows, numberOfColumns, capacity)
+		SELECT airlineCode, name, numberOfRows, numberOfColumns, capacity
+		FROM INSERTED;
+	END;
+END;
+Go
+
+-- Trigger to check if the departure time of the flight is in the past
+CREATE OR ALTER TRIGGER check_if_flight_is_valid
+ON Flights
+INSTEAD OF INSERT
+AS
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM INSERTED i
+		WHERE i.timeOfDeparture < SYSDATETIME()
+	)
+	BEGIN
+		RAISERROR ('Time of departure must be in the future.', 16, 1);
+	END;
+	ELSE IF EXISTS (
+		SELECT 1
+		FROM INSERTED i
+		WHERE i.timeOfDeparture > i.timeOfArrival
+	)
+	BEGIN
+		RAISERROR ('Time of departure must be before the arrival', 16, 1);
+	END;
+	ELSE
+	BEGIN
+		INSERT INTO Flights (routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed)
+		SELECT routeId, timeOfDeparture, timeOfArrival, departurePlaceId, duration, addedBy, planeUsed
+		FROM INSERTED;
+	END;
 END;
 Go
